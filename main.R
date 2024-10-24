@@ -13,10 +13,10 @@ save_price(0)
 save_volume(0)
 rm(list = ls())
 
-load("ceny.RData")
-load("ceny_t_1.RData")
-load("objem.RData")
-load("data.RData")
+load("data/ceny.RData")
+load("data/ceny_t_1.RData")
+load("data/objem.RData")
+load("data/data.RData")
 
 vykazy_to_data <- function(kolo, vykazy_list) {
     # Obch jmění 
@@ -56,10 +56,10 @@ walk(names(ceny[-1]), ~ {
 )
 
 
-save(data, file = "data.RData")
+save(data, file = "data/data.RData")
 rm(list = ls())
 
 
-load("data.RData")
+load("data/data.RData")
 
 # Regrese

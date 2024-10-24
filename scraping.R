@@ -30,6 +30,10 @@ page <- read_html(page_content)
 links <- page %>% html_nodes("a.ft_xls") %>% html_attr("href")
 
 dir_vykazy <- "Výkazy/"
+if (!dir.exists(dir_vykazy)) {
+    dir.create(dir_vykazy)
+}
+
 
 walk(links, ~ {
     file_name <- paste0(basename(.), ".xlsx")
@@ -56,9 +60,14 @@ walk(links, ~ {
 
 
 # Ceny=====
-load("ceny.RData")
-load("ceny_t_1.RData")
-load("objem.RData")
+
+if (!dir.exists("data/")) {
+    dir.create("data/")
+}
+
+load("data/ceny.RData")
+load("data/ceny_t_1.RData")
+load("data/objem.RData")
 
 scraping <- function() {
     ceny_url <- "http://manahra.cz/exchange/quotations/"
@@ -88,10 +97,10 @@ save_price <- function(burz_kolo) {
     data_tabulka[data_tabulka[[1]] == c("IC_all", "IC_trh1","IC_trh2","IC_liche","IC_sude"), "Cena"] <- transformationIC
     
     ceny[burz_kolo + 7, -1] <- as.list(data_tabulka[["Cena"]])
-    save(ceny, file = "ceny.RData")
+    save(ceny, file = "data/ceny.RData")
     
     ceny_t_1[burz_kolo + 8, -1] <- as.list(data_tabulka[["Cena"]])
-    save(ceny_t_1, file = "ceny_t_1.RData")
+    save(ceny_t_1, file = "data/ceny_t_1.RData")
 }
 
 save_volume <- function(burz_kolo) {
@@ -106,5 +115,5 @@ save_volume <- function(burz_kolo) {
     )
     
     volume[burz_kolo + 8, -1] <- as.list(data_tabulka[["Obchodováno"]])
-    save(volume, file = "objem.RData")
+    save(volume, file = "data/objem.RData")
 }
