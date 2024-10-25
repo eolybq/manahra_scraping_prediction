@@ -117,3 +117,42 @@ save_volume <- function(burz_kolo) {
     volume[burz_kolo + 8, -1] <- as.list(data_tabulka[["Obchodováno"]])
     save(volume, file = "data/objem.RData")
 }
+
+
+# Vysledky trhu=======
+vysledky_url <- "http://manahra.cz/results/market/"
+vysledky_page <- GET(vysledky_url, set_cookies(cookie_vector))
+
+page_content_vys <- content(vysledky_page, "text")
+page_vys <- read_html(page_content_vys)
+
+links_vys <- page_vys %>% html_nodes("a.ft_xls") %>% html_attr("href")
+
+dir_vysledky <- "Výsledky/"
+if (!dir.exists(dir_vysledky)) {
+    dir.create(dir_vysledky)
+}
+
+
+walk(links_vys, ~ {
+    file_name <- paste0(basename(.), ".xlsx")
+    file_path <- file.path(dir_vysledky, file_name)
+    
+    tryCatch({
+        # Zkontroluj, zda soubor již existuje
+        if (!file.exists(file_path)) {
+            
+            relative_link <- sub("^/", "", .)
+            full_link <- paste0(base_url, relative_link)
+            
+            download_response <- GET(full_link, set_cookies(cookie_vector))
+            writeBin(content(download_response, "raw"), file_path)
+            
+            cat("Stáhnuto:", file_name, "\n")
+        } else {
+            cat("Soubor již existuje, přeskočeno:", file_name, "\n")
+        }
+    }, error = function(e) {
+        cat("Chyba při stahování:", file_name, "\n", e$message, "\n")
+    })
+})

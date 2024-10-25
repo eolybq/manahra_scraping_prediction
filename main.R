@@ -2,6 +2,7 @@ library(readxl)
 library(readr)
 library(tibble)
 library(dplyr)
+library(purrr)
 
 # vytvoreni tabulky
 # data <- tibble("kolo" = rep(0:7, each = 140), "podnik" = rep(c(names(obch_jmeni_akcie), "IC_all", "IC_trh1", "IC_trh2", "IC_liche", "IC_sude") , times = 8, each = 7), "cena" = rep(NA_real_, 1120), "cena_t-1" = rep(NA_real_, 1120), "objem_burza_t-1" = rep(NA_real_, 1120), "obch_jmeni_akcie" = rep(NA_real_, 1120), "HV" = rep(NA_real_, 1120), "neprodana_auta" = rep(NA_real_, 1120))
@@ -9,8 +10,8 @@ library(dplyr)
 # Scraping
 # Zadat vždy burzovní kolo (Výysledky ze dne "".) do fce
 source("./scraping.R")
-save_price(0)
-save_volume(0)
+save_price(2)
+save_volume(2)
 rm(list = ls())
 
 load("data/ceny.RData")
@@ -23,12 +24,12 @@ vykazy_to_data <- function(kolo, vykazy_list) {
     vlastni_kap_list <- map(vykazy_list, ~ unlist(.[.[[1]] == "Vlastní kapitál", ][-1]))
     
     obch_jmeni_akcie <- map_dbl(c(vlastni_kap_list[[1]], vlastni_kap_list[[2]]), ~ as.numeric(.) * 1000 / 28e6)
-    data[data$kolo == kolo & data$podnik %in% names(obch_jmeni_akcie), "obch_jmeni_akcie"] <- rep(obch_jmeni_akcie, each = 7)
+    data[data$kolo == (kolo + 1) & data$podnik %in% names(obch_jmeni_akcie), "obch_jmeni_akcie_t-1"] <- rep(obch_jmeni_akcie, each = 7)
     
     # HV
     hv_list <- map(vykazy_list, ~ unlist(.[.[[1]] == "HV celkem po zdanění", ][-1]))
     hv <- map_dbl(c(hv_list[[1]], hv_list[[2]]), ~ as.numeric(.))
-    data[data$kolo == kolo & data$podnik %in% names(hv), "HV"] <- rep(hv, each = 7)
+    data[data$kolo == (kolo + 1) & data$podnik %in% names(hv), "HV_t-1"] <- rep(hv, each = 7)
     return(data)
 }
 
@@ -46,6 +47,8 @@ pridani_vykazu <- function(nove_vykazy, kolo) {
 # Přidání nových výkazů /  Načtení výkazů do "data" (jednou za 1 kolo / 7 obch dnu)
 # Vyměnit nazev souboru vykazu a kolo
 data <- pridani_vykazu(c("Výkazy/23465.xlsx", "Výkazy/23466.xlsx"), 0)
+
+# Výsledky trhu / neprodaná auta
 
 # ulozeni cen a objemu a cena_t-1 do "data"
 walk(names(ceny[-1]), ~ {
