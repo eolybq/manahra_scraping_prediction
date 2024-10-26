@@ -10,8 +10,8 @@ library(purrr)
 # Scraping
 # Zadat vždy burzovní kolo (Výysledky ze dne "".) do fce
 source("./scraping.R")
-save_price(3)
-save_volume(3)
+save_price(4)
+save_volume(4)
 rm(list = ls())
 
 load("data/ceny.RData")
@@ -69,6 +69,7 @@ pridani_vysledku <- function(nove_vysledky, kolo) {
     vysledky_to_data(kolo, data_list)
 }
 
+# Přidání nových výsledků /  Načtení výsledků do "data" (jednou za 1 kolo / 7 obch dnu)
 data <- pridani_vysledku(c("Výsledky/23463.xlsx", "Výsledky/23464.xlsx"), 0)
 
 
@@ -87,6 +88,11 @@ rm(list = ls())
 
 load("data/data.RData")
 
-# Regrese
-model <- lm(cena ~ `cena_t-1` + `objem_burza_t-1` + `obch_jmeni_akcie_t-1` + `HV_t-1` + `neprodana_auta_t-1` + podnik + kolo, data = data, na.action = na.exclude)
-summary(model)
+# Regrese podnik
+model_list <- list()
+podniky_vekt <- c("11", "12", "13", "14", "15", "16", "17", "21", "22", "23", "24", "25", "26", "27", "28")
+
+for (pd in podniky_vekt) {
+    model <- lm(cena ~ `cena_t-1` + `objem_burza_t-1` + `obch_jmeni_akcie_t-1` + `HV_t-1` + `neprodana_auta_t-1` + kolo, data = filter(data, podnik == pd), na.action = na.exclude)
+    model_list[[pd]] <- model
+}
