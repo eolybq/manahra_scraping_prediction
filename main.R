@@ -10,8 +10,8 @@ library(purrr)
 # Scraping
 # Zadat vždy burzovní kolo (Výysledky ze dne "".) do fce
 source("./scraping.R")
-save_price(2)
-save_volume(2)
+save_price(3)
+save_volume(3)
 rm(list = ls())
 
 load("data/ceny.RData")
@@ -49,6 +49,28 @@ pridani_vykazu <- function(nove_vykazy, kolo) {
 data <- pridani_vykazu(c("Výkazy/23465.xlsx", "Výkazy/23466.xlsx"), 0)
 
 # Výsledky trhu / neprodaná auta
+vysledky_to_data <- function(kolo, vysledky_list) {
+    zasoby_list <- map(vysledky_list, ~ unlist(.[.[[1]] == "Zásoby", ][-c(1, ncol(.))]))
+    zasoby_list <- map(zasoby_list, ~ .[!is.na(.)])
+    
+    neprodana_auta <- map_dbl(c(zasoby_list[[1]], zasoby_list[[2]]), ~ as.numeric(.))
+    data[data$kolo == (kolo + 1) & data$podnik %in% names(neprodana_auta), "neprodana_auta_t-1"] <- rep(neprodana_auta, each = 7)
+    
+    return(data)
+}
+
+pridani_vysledku <- function(nove_vysledky, kolo) {
+    soubory <- dir("Výsledky/", pattern = "*.xlsx", full.names = TRUE)
+    data_list <- map(keep(soubory, ~. %in% nove_vysledky), 
+                     ~ {
+                         var <- read_excel(., skip = 1, n_max = 10)
+                         var
+                     })
+    vysledky_to_data(kolo, data_list)
+}
+
+data <- pridani_vysledku(c("Výsledky/23463.xlsx", "Výsledky/23464.xlsx"), 0)
+
 
 # ulozeni cen a objemu a cena_t-1 do "data"
 walk(names(ceny[-1]), ~ {
@@ -66,3 +88,5 @@ rm(list = ls())
 load("data/data.RData")
 
 # Regrese
+model <- lm(cena ~ `cena_t-1` + `objem_burza_t-1` + `obch_jmeni_akcie_t-1` + `HV_t-1` + `neprodana_auta_t-1` + podnik + kolo, data = data, na.action = na.exclude)
+summary(model)
