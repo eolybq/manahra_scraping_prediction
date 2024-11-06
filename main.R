@@ -10,8 +10,8 @@ library(purrr)
 # Scraping
 # Zadat vždy burzovní kolo (Výysledky ze dne "".) do fce
 source("./scraping.R")
-save_price(4)
-save_volume(4)
+save_price(14)
+save_volume(14)
 rm(list = ls())
 
 load("data/ceny.RData")
@@ -19,13 +19,14 @@ load("data/ceny_t_1.RData")
 load("data/objem.RData")
 load("data/data.RData")
 
+# Vždy ve středu !!!!!!!===========
 vykazy_to_data <- function(kolo, vykazy_list) {
-    # Obch jmění 
+    # Obch jmění
     vlastni_kap_list <- map(vykazy_list, ~ unlist(.[.[[1]] == "Vlastní kapitál", ][-1]))
-    
+
     obch_jmeni_akcie <- map_dbl(c(vlastni_kap_list[[1]], vlastni_kap_list[[2]]), ~ as.numeric(.) * 1000 / 28e6)
     data[data$kolo == (kolo + 1) & data$podnik %in% names(obch_jmeni_akcie), "obch_jmeni_akcie_t-1"] <- rep(obch_jmeni_akcie, each = 7)
-    
+
     # HV
     hv_list <- map(vykazy_list, ~ unlist(.[.[[1]] == "HV celkem po zdanění", ][-1]))
     hv <- map_dbl(c(hv_list[[1]], hv_list[[2]]), ~ as.numeric(.))
@@ -35,33 +36,34 @@ vykazy_to_data <- function(kolo, vykazy_list) {
 
 pridani_vykazu <- function(nove_vykazy, kolo) {
     soubory <- dir("Výkazy/", pattern = "*.xlsx", full.names = TRUE)
-    data_list <- map(keep(soubory, ~. %in% nove_vykazy), 
+    data_list <- map(keep(soubory, ~. %in% nove_vykazy),
                      ~ {
                          var <- read_excel(., n_max = 90)
                          var[-1]
-                         })
+                     })
     vykazy_list <- map(data_list, na.omit)
     vykazy_to_data(kolo, vykazy_list)
 }
 
 # Přidání nových výkazů /  Načtení výkazů do "data" (jednou za 1 kolo / 7 obch dnu)
 # Vyměnit nazev souboru vykazu a kolo
-data <- pridani_vykazu(c("Výkazy/23465.xlsx", "Výkazy/23466.xlsx"), 0)
+data <- pridani_vykazu(c("Výkazy/23853.xlsx", "Výkazy/23854.xlsx"), 2)
 
+# Vždy v pondělí!!!!!=========
 # Výsledky trhu / neprodaná auta
 vysledky_to_data <- function(kolo, vysledky_list) {
     zasoby_list <- map(vysledky_list, ~ unlist(.[.[[1]] == "Zásoby", ][-c(1, ncol(.))]))
     zasoby_list <- map(zasoby_list, ~ .[!is.na(.)])
-    
+
     neprodana_auta <- map_dbl(c(zasoby_list[[1]], zasoby_list[[2]]), ~ as.numeric(.))
     data[data$kolo == (kolo + 1) & data$podnik %in% names(neprodana_auta), "neprodana_auta_t-1"] <- rep(neprodana_auta, each = 7)
-    
+
     return(data)
 }
 
 pridani_vysledku <- function(nove_vysledky, kolo) {
     soubory <- dir("Výsledky/", pattern = "*.xlsx", full.names = TRUE)
-    data_list <- map(keep(soubory, ~. %in% nove_vysledky), 
+    data_list <- map(keep(soubory, ~. %in% nove_vysledky),
                      ~ {
                          var <- read_excel(., skip = 1, n_max = 10)
                          var
@@ -70,22 +72,22 @@ pridani_vysledku <- function(nove_vysledky, kolo) {
 }
 
 # Přidání nových výsledků /  Načtení výsledků do "data" (jednou za 1 kolo / 7 obch dnu)
-data <- pridani_vysledku(c("Výsledky/23463.xlsx", "Výsledky/23464.xlsx"), 0)
+data <- pridani_vysledku(c("Výsledky/23826.xlsx", "Výsledky/23827.xlsx"), 2)
 
-
+# ceny==========
 # ulozeni cen a objemu a cena_t-1 do "data"
 walk(names(ceny[-1]), ~ {
     data[data$podnik == ., "cena"] <<- ceny[[.]]
     data[data$podnik == ., "objem_burza_t-1"] <<- volume[[.]]
     data[data$podnik == ., "cena_t-1"] <<- ceny_t_1[[.]]
-    }
-)
+})
 
 
 save(data, file = "data/data.RData")
+
+
+# Regrese=============
 rm(list = ls())
-
-
 load("data/data.RData")
 
 # Regrese podnik
