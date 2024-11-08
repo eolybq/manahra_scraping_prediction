@@ -10,8 +10,8 @@ library(purrr)
 # Scraping
 # Zadat vždy burzovní kolo (Výysledky ze dne "".) do fce
 source("./scraping.R")
-save_price(14)
-save_volume(14)
+save_price(16)
+save_volume(16)
 rm(list = ls())
 
 load("data/ceny.RData")
