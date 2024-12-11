@@ -10,8 +10,8 @@ library(purrr)
 # Scraping
 # Zadat vždy burzovní kolo (Výysledky ze dne "".) do fce
 source("./scraping.R")
-save_price(45)
-save_volume(45)
+save_price(49)
+save_volume(49)
 rm(list = ls())
 
 load("data/ceny.RData")
@@ -47,7 +47,7 @@ pridani_vykazu <- function(nove_vykazy, kolo) {
 
 # Přidání nových výkazů /  Načtení výkazů do "data" (jednou za 1 kolo / 7 obch dnu)
 # Vyměnit nazev souboru vykazu a kolo
-data <- pridani_vykazu(c("Výkazy/24312.xlsx", "Výkazy/24313.xlsx"), 6)
+data <- pridani_vykazu(c("Výkazy/24420.xlsx", "Výkazy/24421.xlsx"), 7)
 
 # Vždy v pondělí!!!!!=========
 # Výsledky trhu / neprodaná auta
@@ -72,7 +72,7 @@ pridani_vysledku <- function(nove_vysledky, kolo) {
 }
 
 # Přidání nových výsledků /  Načtení výsledků do "data" (jednou za 1 kolo / 7 obch dnu)
-data <- pridani_vysledku(c("Výsledky/24287.xlsx", "Výsledky/24288.xlsx"), 6)
+data <- pridani_vysledku(c("Výsledky/24399.xlsx", "Výsledky/24400.xlsx"), 7)
 
 # ceny==========
 # ulozeni cen a objemu a cena_t-1 do "data"
