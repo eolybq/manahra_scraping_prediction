@@ -1,8 +1,7 @@
 library(readxl)
-library(readr)
-library(tibble)
-library(dplyr)
-library(purrr)
+library(tidyverse)
+library(fixest)
+library(tseries)
 
 # vytvoreni tabulky
 # data <- tibble("kolo" = rep(0:7, each = 140), "podnik" = rep(c(names(obch_jmeni_akcie), "IC_all", "IC_trh1", "IC_trh2", "IC_liche", "IC_sude") , times = 8, each = 7), "cena" = rep(NA_real_, 1120), "cena_t-1" = rep(NA_real_, 1120), "objem_burza_t-1" = rep(NA_real_, 1120), "obch_jmeni_akcie" = rep(NA_real_, 1120), "HV" = rep(NA_real_, 1120), "neprodana_auta" = rep(NA_real_, 1120))
@@ -90,11 +89,54 @@ save(data, file = "data/data.RData")
 rm(list = ls())
 load("data/data.RData")
 
+test_cena_11 <- data |> 
+    filter(podnik == 11) |> 
+    pull(cena) |> 
+    diff()
+
+adf.test(test_cena_11)
+acf(test_cena_11) 
+pacf(test_cena_11)
+
+
+data |> 
+    filter(podnik == 11) |> 
+    mutate(diff_cena = c(NA, diff(cena))) |> 
+    ggplot(
+        aes(x = 1:56, y = diff_cena)
+    ) +
+    geom_line()
+
+
+
+
 # Regrese podnik
 model_list <- list()
 podniky_vekt <- c("11", "12", "13", "14", "15", "16", "17", "21", "22", "23", "24", "25", "26", "27", "28")
 
 for (pd in podniky_vekt) {
-    model <- lm(cena ~ `cena_t-1` + `objem_burza_t-1` + `obch_jmeni_akcie_t-1` + `HV_t-1` + `neprodana_auta_t-1` + kolo, data = filter(data, podnik == pd), na.action = na.exclude)
+    model <- feols(cena ~ `cena_t-1` + `objem_burza_t-1` + `obch_jmeni_akcie_t-1` + `HV_t-1` + `neprodana_auta_t-1` + kolo, data = filter(data, podnik == pd), na.action = na.exclude)
     model_list[[pd]] <- model
 }
+
+
+
+
+#testovani predpokladu z ekoru
+
+#regrese
+model_n <- lm(zisk ~ obrat + inflace + hdp + nezaměstnanost, data = data_n)
+stargazer(model_n, type = "text")
+residuals_n <- residuals(model_n)
+
+#prepoklady
+pacf(residuals_n, lag.max = 25) #autokorelace reidui
+Box.test(residuals_n) #autokorelace reidui
+white(mainlm =  model_n, #homoskedasticita
+      interactions = TRUE
+)
+breusch_pagan(model_n) #homoskedasticita
+shapiro.test(residuals_n) #normalita rezidui
+vif(model_n) #multikolinearita
+
+resettest(model_n) #korektni specifikace modelu
