@@ -7,8 +7,7 @@ library(dplyr)
 base_url <- "http://manahra.cz/"
 login_url <- "http://manahra.cz/accounts/login/"
 
-username <- "535432"
-password <- "Kikina115"
+source("./config.R")
 
 login_response <- POST(login_url, body = list(username = username, password = password))
 
