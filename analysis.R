@@ -55,12 +55,12 @@ check_stationarity <- function(x, podnik) {
     pull(x) |>
     ts(start = 1, end = 49, frequency = 1)
 
-  ndiffs(var)
-  nsdiffs(var)
-
   ur.kpss(var) |> summary()
   adf.test(var, alternative = "stationary")
   pp.test(var, alternative = "stationary")
+
+  ndiffs(var)
+  nsdiffs(var)
 
   acf(var)
   pacf(var)
