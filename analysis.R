@@ -27,7 +27,8 @@ data_podnik$obch_kolo <- rep(1:49, times = 15)
 data_podnik |>
   ggplot(aes(x = obch_kolo, y = cena, color = podnik)) +
   geom_line() +
-  labs(title = "Ceny akcií v čase", x = "Obchodní kolo", y = "Cena akcie")
+  labs(title = "Ceny akcií v čase", x = "Obchodní kolo", y = "Cena akcie") +
+  theme_minimal()
 
 
 
@@ -39,13 +40,15 @@ podnik17 |>
   ggplot(aes(x = obch_kolo)) +
   geom_line(aes(y = `objem_burza_t-1`, color = "objem_t-1")) +
   geom_line(aes(y = `HV_t-1`, color = "HV_t-1")) +
-  geom_line(aes(y = `neprodana_auta_t-1`, color = "nepro_t-1"))
+  geom_line(aes(y = `neprodana_auta_t-1`, color = "nepro_t-1")) +
+  theme_minimal()
 
 # graf nizke meritko
 podnik17 |>
   ggplot(aes(x = obch_kolo)) +
   geom_line(aes(y = `obch_jmeni_akcie_t-1`, color = "obch_jmeni_t-1")) +
-  geom_line(aes(y = cena, color = "cena"))
+  geom_line(aes(y = cena, color = "cena")) +
+  theme_minimal()
 # WRITE: je zde vidět opravdu zajímavý (ale očekávaný #napsat že z těch pravidel(najit to presneji)) vztah mezi těmito proměnnými
 
 
@@ -73,7 +76,7 @@ check_stationarity_summary <- function(data) {
 
   for (var in names(data)) {
     var_data <- data[[var]]
-    kpss_test <- kpss.test(var_data)
+    kpss_test <- kpss.test(var_data, null = "Level")
     adf_test <- adf.test(var_data, alternative = "stationary")
     pp_test <- pp.test(var_data, alternative = "stationary")
     ndiffs_val <- ndiffs(var_data)
@@ -121,9 +124,6 @@ adf.test(coint_residuals, alternative = "stationary")
 # WRITE: Byla nalezena kointegrace což indikuje, že by data stály za hlubší prozkoumání pomocí VECM modelu
 
 
-
-# Regrese
-
 data_regrese <- tibble(
   diff_cena = diff(podnik17$cena),
   lag_diff_cena = lag(diff(podnik17$cena), 1),
@@ -133,8 +133,15 @@ data_regrese <- tibble(
   objem_burza_t_1 = podnik17$`objem_burza_t-1`[-1]
 )
 
+variables <- data_regrese[, c("diff_cena", "diff_obch_jmeni_akcie_t_1", "diff_HV_t_1", "diff_neprodana_auta_t_1", "objem_burza_t_1")]
+stationarity_summary <- check_stationarity_summary(variables)
+print(stationarity_summary)
+
+
+# Regrese
+
 # Rozdělení na train a test
-train_size <- floor(0.9 * nrow(data_regrese))
+train_size <- floor(0.85 * nrow(data_regrese))
 train_data <- data_regrese[1:train_size, ]
 test_data <- data_regrese[(train_size + 1):nrow(data_regrese), ]
 
@@ -178,27 +185,26 @@ resettest(model, power = 2) # korektni specifikace modelu (linearita vztahu)
 
 # Predikce na testovací sadě
 predictions <- predict(model, newdata = test_data)
-print(predictions)
-
 actuals <- test_data$diff_cena
-print(actuals)
+
+pred <- tibble(
+  predictions = predictions,
+  realizovane = actuals
+)
+
+print(pred)
+
+pred |>
+  ggplot(aes(x = 1:nrow(pred))) +
+  geom_point(aes(y = predictions, color = "Predictions")) +
+  geom_line(aes(y = predictions, color = "Predictions")) +
+  geom_point(aes(y = realizovane, color = "Actuals")) +
+  geom_line(aes(y = realizovane, color = "Actuals")) +
+  labs(x = "Index", y = "Values", title = "Predikce vs Realizované hodnoty") +
+  scale_color_manual(values = c("Predictions" = "blue", "Actuals" = "yellow")) +
+  theme_minimal()
+
 mse <- mean((predictions - actuals)^2)
 print(mse)
 sqrt(mse) #WRITE: RMSE -> je poněkud vyšší než na trénovacích datech což může značit že model neumí příliš generalizovat vztahy na nová data
 #WRITE: je vidět, že model má průměrnou chybu okolo 13,5 Kč
-
-
-
-
-#!!!!!!!!!!!!!!!!!!ODSTRANIT KDYŽTAK ->
-
-# ARIMA
-cena_11_ts <- test_cena_11 |>
-  pull(cena) |>
-  ts(start = 1, end = 49, frequency = 1) |>
-  log() |>
-  diff()
-
-autoplot(cena_11_ts)
-
-auto.arima(cena_11_ts)
