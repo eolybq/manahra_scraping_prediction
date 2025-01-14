@@ -8,7 +8,11 @@ library(skedastic)
 library(car)
 library(lmtest)
 library(modelsummary)
-library(xtable)
+library(Metrics)
+library(vtable)
+library(readxl)
+library(openxlsx)
+
 
 
 rm(list = ls())
@@ -35,34 +39,37 @@ data_podnik |>
 podnik17 <- data_podnik |>
   filter(podnik == 17)
 
+
+podnik17 |> 
+    select(-c("podnik", "kolo", `cena_t-1`, "obch_kolo")) |>
+    summary() |> 
+    write.xlsx(file = "summary.xlsx")
+    
+
+
 # graf vysoke meritko
 podnik17 |>
   ggplot(aes(x = obch_kolo)) +
-  geom_line(aes(y = `objem_burza_t-1`, color = "objem_t-1")) +
-  geom_line(aes(y = `HV_t-1`, color = "HV_t-1")) +
-  geom_line(aes(y = `neprodana_auta_t-1`, color = "nepro_t-1")) +
-  theme_minimal()
+  geom_line(aes(y = `objem_burza_t-1`, color = "objem_burza")) +
+  geom_line(aes(y = `HV_t-1`, color = "HV")) +
+  geom_line(aes(y = `neprodana_auta_t-1`, color = "neprodana_auta")) +
+    scale_y_continuous(labels = scales::label_number()) + 
+    scale_color_manual(values = c("objem_burza" = "blue", "neprodana_auta" = "yellow", "HV" = "red")) +
+  theme_minimal() +
+    labs(y = NULL)
 
 # graf nizke meritko
 podnik17 |>
   ggplot(aes(x = obch_kolo)) +
-  geom_line(aes(y = `obch_jmeni_akcie_t-1`, color = "obch_jmeni_t-1")) +
+  geom_line(aes(y = `obch_jmeni_akcie_t-1`, color = "obch_jmeni")) +
   geom_line(aes(y = cena, color = "cena")) +
-  theme_minimal()
-# WRITE: je zde vidět opravdu zajímavý (ale očekávaný #napsat že z těch pravidel(najit to presneji)) vztah mezi těmito proměnnými
+    scale_color_manual(values = c("obch_jmeni" = "yellow", "cena" = "blue")) +
+  theme_minimal() +
+    labs(y = NULL)
 
 
-# WRITE - málo pozorování obtížný výběr lag do ADF testu, když = 5 stacionarni, = 6 nestacionarni -> muze indikovat jen prilis velky lag a ne nestacionaritu, protoze perioda sezonnosti je az = 7
 # Stacionarita
 acf(podnik17$cena)
-# WRITE: zde je vidět, že cena není stacionární, protože má vysokou autokorelaci která pomalu klesá
-
-
-
-
-
-
-
 
 # Stacionarita a tabulka p hodnot testu a doporucenych diferenci
 check_stationarity_summary <- function(data) {
@@ -96,24 +103,17 @@ check_stationarity_summary <- function(data) {
 
 variables <- podnik17[, c("cena", "obch_jmeni_akcie_t-1", "HV_t-1", "neprodana_auta_t-1", "objem_burza_t-1")]
 stationarity_summary <- check_stationarity_summary(variables)
-print(stationarity_summary)
+stationarity_summary |> 
+    write.xlsx(file = "stacionarita.xlsx")
 
 
-# Export do html
-export_to_html <- function(data, file_path) {
-  html_table <- xtable(data)
-  print(html_table, type = "html", file = file_path)
-}
-
-
-export_to_html(stationarity_summary, "stationarity_summary.html")
 
 
 
 # Engle-Granger cointegration test
 
 # Fit the regression model
-coint_model <- lm(cena ~ `obch_jmeni_akcie_t-1` + `HV_t-1` + `neprodana_auta_t-1` + `objem_burza_t-1`, data = podnik17)
+coint_model <- lm(cena ~ `obch_jmeni_akcie_t-1` + `HV_t-1` + `neprodana_auta_t-1`, data = podnik17)
 
 # Get the residuals
 coint_residuals <- residuals(coint_model)
@@ -121,20 +121,19 @@ coint_residuals <- residuals(coint_model)
 # Perform the ADF test on residuals
 adf.test(coint_residuals, alternative = "stationary")
 
-# WRITE: Byla nalezena kointegrace což indikuje, že by data stály za hlubší prozkoumání pomocí VECM modelu
 
 
 data_regrese <- tibble(
   diff_cena = diff(podnik17$cena),
   lag_diff_cena = lag(diff(podnik17$cena), 1),
   diff_obch_jmeni_akcie_t_1 = diff(podnik17$`obch_jmeni_akcie_t-1`),
-  diff_HV_t_1 = diff(podnik17$`HV_t-1`),
+  diff_HV_t_1 = diff(log(podnik17$`HV_t-1`)),
   diff_neprodana_auta_t_1 = diff(podnik17$`neprodana_auta_t-1`),
-  objem_burza_t_1 = podnik17$`objem_burza_t-1`[-1]
+  objem_burza_t_1 = log(podnik17$`objem_burza_t-1`[-1])
 )
 
-variables <- data_regrese[, c("diff_cena", "diff_obch_jmeni_akcie_t_1", "diff_HV_t_1", "diff_neprodana_auta_t_1", "objem_burza_t_1")]
-stationarity_summary <- check_stationarity_summary(variables)
+variables_2 <- data_regrese[, c("diff_cena", "diff_obch_jmeni_akcie_t_1", "diff_HV_t_1", "diff_neprodana_auta_t_1", "objem_burza_t_1")]
+stationarity_summary <- check_stationarity_summary(variables_2)
 print(stationarity_summary)
 
 
@@ -145,20 +144,47 @@ train_size <- floor(0.85 * nrow(data_regrese))
 train_data <- data_regrese[1:train_size, ]
 test_data <- data_regrese[(train_size + 1):nrow(data_regrese), ]
 
+# Model 1
 model <- train_data |>
-  lm(
-    diff_cena ~
-      lag_diff_cena +
-      diff_obch_jmeni_akcie_t_1 + #WRITE: odstraneni HV kvuli nevyznamnosti -> neprodana auta sice taky nevyznamna ale dle reset testu by jsme pri odstraneni zamitali H0
-      log(objem_burza_t_1) +
-      diff_neprodana_auta_t_1, #WRITE: logaritmus kvůli opravdu vysokým hodnotám vůči malým odstaních prom. kvůlu diferenci a i jednotce
-    data = _,
-    # vcov = "iid"
-  )
+    lm(
+        diff_cena ~
+            diff_obch_jmeni_akcie_t_1 + 
+            objem_burza_t_1 +
+            diff_neprodana_auta_t_1 + 
+            diff_HV_t_1, 
+        data = _,
+        # vcov = "iid"
+    )
+
+model <- train_data |>
+    lm(
+        diff_cena ~
+            lag_diff_cena +
+            diff_obch_jmeni_akcie_t_1 + 
+            objem_burza_t_1 +
+            diff_neprodana_auta_t_1 + 
+            diff_HV_t_1, 
+        data = _,
+        # vcov = "iid"
+    )
+
+# Model 2
+model <- train_data |>
+    lm(
+        diff_cena ~
+            lag_diff_cena +
+            diff_obch_jmeni_akcie_t_1 + 
+            objem_burza_t_1 +
+            diff_neprodana_auta_t_1 + 
+            diff_HV_t_1, 
+        data = _,
+        # vcov = "iid"
+    )
+
+
 
 model |>
-  modelsummary(stars = c("*" = .1, "**" = .05, "***" = .01))
-
+  modelsummary(stars = c("*" = .1, "**" = .05, "***" = .01), output = "regrese.xlsx")
 
 
 
@@ -168,8 +194,7 @@ residuals <- residuals(model)
 acf(residuals)
 pacf(residuals)
 Box.test(residuals, lag = 25, type = "Ljung-Box")
-dwtest(model, alternative = "two.sided")
-# WRITE: dwtest stále ukazuje autokorelaci reziduí ale při pohledu na ACF a PACF je vidět, že autokorelace je nyní výrazně nižší než před regresí než při nezahrnutí cena_t-1 a také Ljung-Box test neodmítá nulovou hypotézu o neautokorelaci reziduí # nolint
+# dwtest(model, alternative = "two.sided")
 
 
 white(
@@ -192,19 +217,21 @@ pred <- tibble(
   realizovane = actuals
 )
 
-print(pred)
+pred |> 
+    write.xlsx("predikce.xlsx")
 
 pred |>
   ggplot(aes(x = 1:nrow(pred))) +
-  geom_point(aes(y = predictions, color = "Predictions")) +
-  geom_line(aes(y = predictions, color = "Predictions")) +
-  geom_point(aes(y = realizovane, color = "Actuals")) +
-  geom_line(aes(y = realizovane, color = "Actuals")) +
-  labs(x = "Index", y = "Values", title = "Predikce vs Realizované hodnoty") +
-  scale_color_manual(values = c("Predictions" = "blue", "Actuals" = "yellow")) +
+  geom_point(aes(y = predictions, color = "Predikce")) +
+  geom_line(aes(y = predictions, color = "Predikce")) +
+  geom_point(aes(y = realizovane, color = "Realizovaná")) +
+  geom_line(aes(y = realizovane, color = "Realizovaná")) +
+  labs(x = "Obchodní kolo", y = "Cena", title = "Predikce vs Realizované hodnoty") +
+  scale_color_manual(values = c("Predikce" = "blue", "Realizovaná" = "yellow")) +
   theme_minimal()
 
 mse <- mean((predictions - actuals)^2)
 print(mse)
-sqrt(mse) #WRITE: RMSE -> je poněkud vyšší než na trénovacích datech což může značit že model neumí příliš generalizovat vztahy na nová data
-#WRITE: je vidět, že model má průměrnou chybu okolo 13,5 Kč
+sqrt(mse)
+sd(data_regrese$diff_cena)
+
