@@ -10,3 +10,22 @@ Prediction for specific enterprise is based on financial statements (Balance she
 - R (Automated web scraping, Tidyverse)
 - Linear regression
 - Model evaluation, prediction, statistical analysis
+
+
+## Outcomes
+
+**Predictions on test data:**
+
+| Predictions     | Real        |
+|-----------------|-------------|
+|   -2.7334       |   -28       |
+|  103.4340       |   126       |
+|    4.8266       |    -9       |
+|    5.7218       |     0       |
+|    3.3474       |    -5       |
+|    4.7154       |    33       |
+|   -5.0702       |    -8       |
+|    5.4813       |     1       |
+
+**Predictions in plot:**
+![Predictions plot](plots_tabs/preds.png)
