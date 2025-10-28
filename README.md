@@ -1,6 +1,6 @@
 # Simulated market stock price prediction
 
-**Project has its own report available (in Czech) locally here:** [As PDF](/seminarka.pdf) [As DOCX](/seminarka.docx)
+**Project has its own report available (in Czech) locally here:** [As PDF](/report.pdf) [As DOCX](/report.docx)
 
 This project takes data from simulated market game that taked place in my University and shows how linear regression model can perform in predicting stock price of enterprices on this simulated market.
 Main aim is to showcase data manipulation, data cleaning, processing and web scraping, in-depth analysis and model evaluation, aswell as prediciton evaluation, data visualization. 
